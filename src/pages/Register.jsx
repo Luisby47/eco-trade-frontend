@@ -113,7 +113,7 @@ const Register = () => {
 
             <div>
               <Label htmlFor="password">Contraseña</Label>
-              <div className="relative mt-1">
+              <div className="flex gap-2 mt-1">
                 <Input
                   id="password"
                   name="password"
@@ -122,17 +122,17 @@ const Register = () => {
                   value={formData.password}
                   onChange={handleInputChange}
                   placeholder="Mínimo 6 caracteres"
-                  className="pr-10"
+                  className="flex-1"
                 />
                 <button
                   type="button"
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
                   onClick={() => setShowPassword(!showPassword)}
+                  className="px-3 py-2 border border-gray-300 rounded-md text-gray-400 hover:text-gray-600 hover:border-gray-400 transition-colors"
                 >
                   {showPassword ? (
-                    <EyeOff className="h-5 w-5 text-gray-400 hover:text-gray-600" />
+                    <EyeOff className="h-5 w-5" />
                   ) : (
-                    <Eye className="h-5 w-5 text-gray-400 hover:text-gray-600" />
+                    <Eye className="h-5 w-5" />
                   )}
                 </button>
               </div>

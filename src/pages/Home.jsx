@@ -72,7 +72,7 @@ const Home = () => {
 
               {/* Search Bar */}
               <form onSubmit={handleSearch} className="max-w-2xl">
-                <div className="flex bg-white rounded-2xl overflow-hidden shadow-lg">
+                <div className="flex bg-white rounded-2xl overflow-hidden shadow-lg gap-2">
                   <div className="flex-1 flex items-center px-6">
                     <Search className="w-6 h-6 text-gray-400 mr-3" />
                     <Input
@@ -83,7 +83,7 @@ const Home = () => {
                       className="border-none shadow-none text-gray-900 focus:ring-0 bg-transparent text-lg py-4"
                     />
                   </div>
-                  <Button type="submit" className="bg-gray-900 hover:bg-gray-800 rounded-none rounded-r-2xl px-10 py-4 text-lg">
+                  <Button type="submit" className="bg-gray-900 hover:bg-gray-800 rounded-2xl px-10 py-4 text-lg my-2 mr-2">
                     Buscar
                   </Button>
                 </div>

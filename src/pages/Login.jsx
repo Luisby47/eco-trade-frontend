@@ -96,21 +96,23 @@ const Login = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Contraseña
                 </label>
-                <div className="relative">
-                  <Lock className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
-                  <Input
-                    name="password"
-                    type={showPassword ? 'text' : 'password'}
-                    required
-                    value={formData.password}
-                    onChange={handleInputChange}
-                    placeholder="Mínimo 6 caracteres"
-                    className="pl-10 pr-10 py-3 border-gray-300 focus:border-green-500 focus:ring-green-500"
-                  />
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Lock className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+                    <Input
+                      name="password"
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      value={formData.password}
+                      onChange={handleInputChange}
+                      placeholder="Mínimo 6 caracteres"
+                      className="pl-10 py-3 border-gray-300 focus:border-green-500 focus:ring-green-500"
+                    />
+                  </div>
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    className="px-3 py-2 border border-gray-300 rounded-md text-gray-400 hover:text-gray-600 hover:border-gray-400 transition-colors"
                   >
                     {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                   </button>

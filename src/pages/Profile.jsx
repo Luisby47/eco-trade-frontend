@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Star, MapPin, Package, User, Plus, ShoppingBag, MessageCircle } from 'lucide-react';
+import { Star, MapPin, Package, User, Plus, ShoppingBag, MessageCircle, Edit, Save, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/button';
 
@@ -11,8 +11,66 @@ const Profile = () => {
   const { id } = useParams();
   const { user, isLoggedIn } = useAuth();
   
+  // Estados para edición
+  const [isEditing, setIsEditing] = useState(false);
+  const [editData, setEditData] = useState({});
+  
   // For MVP, just show current user's profile
   const isOwnProfile = !id || (user && id === user.id);
+
+  // Inicializar datos de edición cuando el usuario cambie
+  useEffect(() => {
+    if (user) {
+      setEditData({
+        full_name: user.full_name || '',
+        email: user.email || '',
+        phone: user.phone || '',
+        location: user.location || '',
+        gender: user.gender || ''
+      });
+    }
+  }, [user]);
+
+  // Funciones para manejar la edición
+  const handleInputChange = (field, value) => {
+    setEditData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleStartEdit = () => {
+    setIsEditing(true);
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    // Restaurar datos originales
+    setEditData({
+      full_name: user.full_name || '',
+      email: user.email || '',
+      phone: user.phone || '',
+      location: user.location || '',
+      gender: user.gender || ''
+    });
+  };
+
+  const handleSaveEdit = async () => {
+    try {
+      // Aquí iría la llamada a la API para actualizar el usuario
+      console.log('Guardando datos:', editData);
+      
+      // Por ahora solo simulamos el guardado
+      alert('Información actualizada correctamente');
+      setIsEditing(false);
+      
+      // En una implementación real, actualizarías el contexto del usuario aquí
+      // await updateUser(editData);
+    } catch (error) {
+      console.error('Error al guardar:', error);
+      alert('Error al guardar la información');
+    }
+  };
 
   if (!isLoggedIn && isOwnProfile) {
     return (
@@ -47,96 +105,88 @@ const Profile = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Profile Header Banner */}
-      <div className="bg-gradient-to-r from-green-600 to-emerald-600 text-white">
-        <div className="max-w-6xl mx-auto px-6 py-8">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-6">
-              <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center">
-                {profileUser.profile_picture ? (
-                  <img 
-                    src={profileUser.profile_picture} 
-                    alt={profileUser.full_name}
-                    className="w-full h-full rounded-full object-cover"
-                  />
-                ) : (
-                  <User className="w-10 h-10 text-white" />
-                )}
+    <div className="p-6">
+      <div className="max-w-6xl mx-auto">
+        {/* Profile Header Card */}
+        <div className="bg-white rounded-2xl border border-green-100 overflow-hidden mb-8 shadow-sm">
+          <div className="bg-gradient-to-r from-green-600 to-emerald-600 p-8 text-white">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
+              <div className="w-24 h-24 bg-white/20 rounded-full flex items-center justify-center">
+                <User className="w-12 h-12 text-white" />
               </div>
               
-              <div>
+              <div className="flex-1">
                 <h1 className="text-3xl font-bold mb-2">
                   {profileUser.full_name}
                 </h1>
-                <div className="flex items-center gap-2 text-green-100">
-                  <MapPin className="w-4 h-4" />
-                  <span>{profileUser.location}</span>
-                </div>
+                
+                {profileUser.location && (
+                  <div className="flex items-center gap-2 mb-4">
+                    <MapPin className="w-5 h-5" />
+                    <span className="text-lg">{profileUser.location}</span>
+                  </div>
+                )}
+                
+                {profileUser.rating > 0 && (
+                  <div className="flex items-center gap-2">
+                    <Star className="w-5 h-5 text-yellow-300 fill-current" />
+                    <span className="text-lg font-semibold">{profileUser.rating.toFixed(1)}</span>
+                    <span className="opacity-90">({profileUser.total_reviews} reseñas)</span>
+                  </div>
+                )}
               </div>
-            </div>
 
-            {isOwnProfile && (
-              <Link to="/post">
-                <Button className="bg-white text-green-600 hover:bg-green-50">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Nuevo Producto
-                </Button>
-              </Link>
-            )}
+              {isOwnProfile && (
+                <Link to="/post">
+                  <Button className="bg-white text-green-600 hover:bg-gray-50">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Nuevo Producto
+                  </Button>
+                </Link>
+              )}
+            </div>
           </div>
         </div>
-      </div>
-
-      <div className="max-w-6xl mx-auto px-6 py-8">
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white rounded-xl border border-gray-200 p-6 text-center">
-            <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Package className="w-6 h-6 text-green-600" />
-            </div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-1">0</h3>
-            <p className="text-gray-600 text-sm">Productos Disponibles</p>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
+          <div className="bg-white rounded-xl border border-green-100 p-6 text-center shadow-sm">
+            <Package className="w-8 h-8 text-green-600 mx-auto mb-3" />
+            <p className="text-2xl font-bold text-gray-900 mb-1">0</p>
+            <p className="text-gray-600">Productos Disponibles</p>
           </div>
           
-          <div className="bg-white rounded-xl border border-gray-200 p-6 text-center">
-            <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <ShoppingBag className="w-6 h-6 text-blue-600" />
-            </div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-1">0</h3>
-            <p className="text-gray-600 text-sm">Productos Vendidos</p>
+          <div className="bg-white rounded-xl border border-green-100 p-6 text-center shadow-sm">
+            <ShoppingBag className="w-8 h-8 text-blue-600 mx-auto mb-3" />
+            <p className="text-2xl font-bold text-gray-900 mb-1">0</p>
+            <p className="text-gray-600">Productos Vendidos</p>
           </div>
           
-          <div className="bg-white rounded-xl border border-gray-200 p-6 text-center">
-            <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Star className="w-6 h-6 text-yellow-600" />
-            </div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-1">{profileUser.total_reviews}</h3>
-            <p className="text-gray-600 text-sm">Reseñas Recibidas</p>
+          <div className="bg-white rounded-xl border border-green-100 p-6 text-center shadow-sm">
+            <Star className="w-8 h-8 text-yellow-500 mx-auto mb-3" />
+            <p className="text-2xl font-bold text-gray-900 mb-1">{profileUser.total_reviews}</p>
+            <p className="text-gray-600">Reseñas Recibidas</p>
           </div>
         </div>
 
         {/* Main Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* My Products */}
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-200">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+          {/* My Products Card */}
+          <div className="bg-white rounded-xl border border-green-100 overflow-hidden shadow-sm">
+            <div className="px-6 py-4 border-b border-gray-100">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-gray-900">Mis Productos (0)</h2>
                 {isOwnProfile && (
                   <Link to="/post">
-                    <Button size="sm">
+                    <Button size="sm" className="bg-green-600 hover:bg-green-700">
                       <Plus className="w-4 h-4 mr-2" />
-                      Publicar Primer Producto
+                      Publicar
                     </Button>
                   </Link>
                 )}
               </div>
             </div>
             <div className="p-8 text-center">
-              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Package className="w-8 h-8 text-gray-400" />
-              </div>
+              <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">
                 No tienes productos publicados
               </h3>
@@ -145,7 +195,7 @@ const Profile = () => {
               </p>
               {isOwnProfile && (
                 <Link to="/post">
-                  <Button>
+                  <Button className="bg-green-600 hover:bg-green-700">
                     <Plus className="w-4 h-4 mr-2" />
                     Publicar Primer Producto
                   </Button>
@@ -154,9 +204,9 @@ const Profile = () => {
             </div>
           </div>
 
-          {/* Reviews Section */}
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-200">
+          {/* Reviews Card */}
+          <div className="bg-white rounded-xl border border-green-100 overflow-hidden shadow-sm">
+            <div className="px-6 py-4 border-b border-gray-100">
               <h2 className="text-lg font-semibold text-gray-900">Reseñas (0)</h2>
             </div>
             <div className="p-8 text-center">
@@ -183,9 +233,7 @@ const Profile = () => {
                 </>
               ) : (
                 <>
-                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Star className="w-8 h-8 text-gray-400" />
-                  </div>
+                  <Star className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                   <h3 className="text-lg font-medium text-gray-900 mb-2">
                     Sin reseñas aún
                   </h3>
@@ -198,27 +246,111 @@ const Profile = () => {
           </div>
         </div>
 
-        {/* Contact Information */}
+        {/* Personal Information Card */}
         {isOwnProfile && (
-          <div className="bg-white rounded-xl border border-gray-200 p-6 mt-8">
-            <h2 className="text-lg font-semibold text-gray-900 mb-6">
-              Información Personal
-            </h2>
+          <div className="bg-white rounded-xl border border-green-100 p-6 shadow-sm">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-lg font-semibold text-gray-900">
+                Información Personal
+              </h2>
+              
+              {!isEditing ? (
+                <Button onClick={handleStartEdit} variant="outline" size="sm">
+                  <Edit className="w-4 h-4 mr-2" />
+                  Editar
+                </Button>
+              ) : (
+                <div className="flex gap-2">
+                  <Button onClick={handleSaveEdit} size="sm">
+                    <Save className="w-4 h-4 mr-2" />
+                    Guardar
+                  </Button>
+                  <Button onClick={handleCancelEdit} variant="outline" size="sm">
+                    <X className="w-4 h-4 mr-2" />
+                    Cancelar
+                  </Button>
+                </div>
+              )}
+            </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Nombre Completo</label>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    value={editData.full_name}
+                    onChange={(e) => handleInputChange('full_name', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    placeholder="Tu nombre completo"
+                  />
+                ) : (
+                  <p className="text-gray-900 bg-gray-50 px-3 py-2 rounded-md">{profileUser.full_name}</p>
+                )}
+              </div>
+              
+              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
-                <p className="text-gray-900 bg-gray-50 px-3 py-2 rounded-md">{profileUser.email}</p>
+                {isEditing ? (
+                  <input
+                    type="email"
+                    value={editData.email}
+                    onChange={(e) => handleInputChange('email', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    placeholder="Tu email"
+                  />
+                ) : (
+                  <p className="text-gray-900 bg-gray-50 px-3 py-2 rounded-md">{profileUser.email}</p>
+                )}
               </div>
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Teléfono</label>
-                <p className="text-gray-900 bg-gray-50 px-3 py-2 rounded-md">{profileUser.phone}</p>
+                {isEditing ? (
+                  <input
+                    type="tel"
+                    value={editData.phone}
+                    onChange={(e) => handleInputChange('phone', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    placeholder="Tu número de teléfono"
+                  />
+                ) : (
+                  <p className="text-gray-900 bg-gray-50 px-3 py-2 rounded-md">{profileUser.phone}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Ubicación</label>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    value={editData.location}
+                    onChange={(e) => handleInputChange('location', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    placeholder="Tu ubicación"
+                  />
+                ) : (
+                  <p className="text-gray-900 bg-gray-50 px-3 py-2 rounded-md">{profileUser.location}</p>
+                )}
               </div>
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Género</label>
-                <p className="text-gray-900 bg-gray-50 px-3 py-2 rounded-md capitalize">{profileUser.gender}</p>
+                {isEditing ? (
+                  <select
+                    value={editData.gender}
+                    onChange={(e) => handleInputChange('gender', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  >
+                    <option value="">Seleccionar género</option>
+                    <option value="masculino">Masculino</option>
+                    <option value="femenino">Femenino</option>
+                    <option value="otro">Otro</option>
+                    <option value="prefiero_no_decir">Prefiero no decir</option>
+                  </select>
+                ) : (
+                  <p className="text-gray-900 bg-gray-50 px-3 py-2 rounded-md capitalize">{profileUser.gender}</p>
+                )}
               </div>
               
               <div>

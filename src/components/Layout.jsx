@@ -12,7 +12,9 @@ import {
   Menu,
   X,
   Leaf,
-  Settings
+  Settings,
+  Star,
+  BarChart3
 } from 'lucide-react';
 
 /**
@@ -43,6 +45,8 @@ const Layout = ({ children }) => {
     { path: '/', icon: Home, label: 'Inicio', active: isActive('/') },
     { path: '/browse', icon: Search, label: 'Explorar', active: isActive('/browse') },
     { path: '/post', icon: Plus, label: 'Publicar', active: isActive('/post') },
+    { path: '/subscriptions', icon: Star, label: 'Suscripciones', active: isActive('/subscriptions') },
+    { path: '/statistics', icon: BarChart3, label: 'Estadísticas', active: isActive('/statistics') },
     { path: '/profile', icon: User, label: 'Perfil', active: isActive('/profile') },
     { path: '/chats', icon: MessageCircle, label: 'Mensajes', active: isActive('/chats') },
   ];
@@ -95,14 +99,10 @@ const Layout = ({ children }) => {
             <button
               onClick={() => setIsCollapsed(!isCollapsed)}
               className={cn(
-                " p-2 rounded-sm hover:bg-gray-100 transition-colors",
+                " px-3 py-2 border border-gray-300 rounded-md text-gray-400 hover:text-gray-600 hover:border-gray-400 transition-colors",
                 isCollapsed ? "mx-auto" : "ml-2 flex-shrink-0"
               )}
-              style={{ 
-                borderColor: '#6B7280',
-                color: '#6B7280',
-                backgroundColor: '#F1F5F9'
-              }}
+            
             >
               {isCollapsed ? <Menu className="h-3 w-3" /> : <X className="h-3 w-3" />}
             </button>

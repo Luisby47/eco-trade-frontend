@@ -10,6 +10,8 @@ import Profile from './pages/Profile';
 import Chat from './pages/Chat';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import Subscriptions from './pages/Subscriptions';
+import Statistics from './pages/Statistics';
 import './App.css';
 
 /**
@@ -28,6 +30,8 @@ function App() {
               <Route path="/post" element={<PostProduct />} />
               <Route path="/profile/:id?" element={<Profile />} />
               <Route path="/chats" element={<Chat />} />
+              <Route path="/subscriptions" element={<Subscriptions />} />
+              <Route path="/statistics" element={<Statistics />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="*" element={<Navigate to="/" replace />} />
