@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import Footer from './Footer';
 import { 
   Home, 
   Search, 
@@ -10,14 +11,23 @@ import {
   LogOut,
   Menu,
   X,
-  Leaf
+  Leaf,
+  Settings
 } from 'lucide-react';
 
 /**
- * Main Layout Component with Navigation
+ * Utility function for combining class names
+ */
+const cn = (...classes) => {
+  return classes.filter(Boolean).join(' ');
+};
+
+/**
+ * Modern Layout Component with Collapsible Sidebar
  */
 const Layout = ({ children }) => {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const { user, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -30,108 +40,215 @@ const Layout = ({ children }) => {
   const isActive = (path) => location.pathname === path;
 
   const navigationItems = [
-    { path: '/', icon: Home, label: 'Inicio' },
-    { path: '/browse', icon: Search, label: 'Explorar' },
-    { path: '/post', icon: Plus, label: 'Publicar' },
-    { path: '/profile', icon: User, label: 'Perfil' },
-    { path: '/chats', icon: MessageCircle, label: 'Mensajes' },
+    { path: '/', icon: Home, label: 'Inicio', active: isActive('/') },
+    { path: '/browse', icon: Search, label: 'Explorar', active: isActive('/browse') },
+    { path: '/post', icon: Plus, label: 'Publicar', active: isActive('/post') },
+    { path: '/profile', icon: User, label: 'Perfil', active: isActive('/profile') },
+    { path: '/chats', icon: MessageCircle, label: 'Mensajes', active: isActive('/chats') },
   ];
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      navigate(`/browse?search=${encodeURIComponent(searchQuery.trim())}`);
+    } else {
+      navigate('/browse');
+    }
+  };
 
   // Don't show layout on login/register pages
   if (location.pathname === '/login' || location.pathname === '/register') {
-    return children;
+    return (
+      <div className="min-h-screen flex flex-col">
+        <div className="flex-1">
+          {children}
+        </div>
+        <Footer />
+      </div>
+    );
   }
 
   return (
-    <div className="flex h-screen bg-gray-100">
+    <div className="flex h-screen" style={{ backgroundColor: '#F1F5F9' }}>
       {/* Sidebar */}
-      <div className={`${sidebarOpen ? 'w-72' : 'w-20'} transition-all duration-300 bg-white shadow-lg flex flex-col`}>
+      <div
+        className={cn(
+          "transition-all duration-300 ease-in-out flex flex-col shadow-sm",
+          isCollapsed ? "w-20" : "w-72",
+        )}
+        style={{ backgroundColor: '#FFFFFF', borderRight: '1px solid #F1F5F9' }}
+      >
         {/* Header */}
-        <div className="p-6 border-b border-gray-200">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-green-600 rounded-lg flex items-center justify-center">
-                <Leaf className="w-6 h-6 text-white" />
-              </div>
-              {sidebarOpen && (
-                <div>
-                  <h1 className="text-xl font-bold text-gray-900">EcoTrade</h1>
-                  <p className="text-sm text-gray-500">Marketplace Sostenible</p>
+        <div className="p-4" style={{ borderBottom: '1px solid #F1F5F9' }}>
+          <div className="flex items-center justify-between min-h-[40px]">
+            {!isCollapsed && (
+              <div className="flex items-center space-x-3 flex-1 min-w-0">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#16A34A' }}>
+                  <Leaf className="w-5 h-5 text-white" />
                 </div>
-              )}
-            </div>
+                <div className="min-w-0">
+                  <span className="font-bold text-lg block truncate" style={{ color: '#111827' }}>EcoTrade</span>
+                  <p className="text-xs truncate" style={{ color: '#6B7280' }}>Marketplace Sostenible</p>
+                </div>
+              </div>
+            )}
             <button
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+              onClick={() => setIsCollapsed(!isCollapsed)}
+              className={cn(
+                " p-2 rounded-sm hover:bg-gray-100 transition-colors",
+                isCollapsed ? "mx-auto" : "ml-2 flex-shrink-0"
+              )}
+              style={{ 
+                borderColor: '#6B7280',
+                color: '#6B7280',
+                backgroundColor: '#F1F5F9'
+              }}
             >
-              {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              {isCollapsed ? <Menu className="h-3 w-3" /> : <X className="h-3 w-3" />}
             </button>
           </div>
         </div>
 
+        {/* Search */}
+        {!isCollapsed && (
+          <div className="p-4" style={{ borderBottom: '1px solid #F1F5F9' }}>
+            <form onSubmit={handleSearch} className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4" style={{ color: '#6B7280' }} />
+              <input
+                type="text"
+                placeholder="Buscar productos..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 rounded-lg text-sm transition-all focus:outline-none"
+                style={{
+                  backgroundColor: '#F1F5F9',
+                  border: '1px solid #F1F5F9',
+                  color: '#111827'
+                }}
+                onFocus={(e) => {
+                  e.target.style.backgroundColor = '#FFFFFF';
+                  e.target.style.borderColor = '#16A34A';
+                  e.target.style.boxShadow = '0 0 0 2px rgba(22, 163, 74, 0.1)';
+                }}
+                onBlur={(e) => {
+                  e.target.style.backgroundColor = '#F1F5F9';
+                  e.target.style.borderColor = '#F1F5F9';
+                  e.target.style.boxShadow = 'none';
+                }}
+              />
+            </form>
+          </div>
+        )}
+
         {/* Navigation */}
         <nav className="flex-1 p-4">
           <ul className="space-y-2">
-            {navigationItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <li key={item.path}>
-                  <Link
-                    to={item.path}
-                    className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
-                      isActive(item.path)
-                        ? 'bg-green-50 text-green-700 border-r-2 border-green-600'
-                        : 'text-gray-700 hover:bg-gray-50'
-                    }`}
-                  >
-                    <Icon className="w-5 h-5" />
-                    {sidebarOpen && <span className="font-medium">{item.label}</span>}
-                  </Link>
-                </li>
-              );
-            })}
+            {navigationItems.map((item, index) => (
+              <li key={index}>
+                <Link
+                  to={item.path}
+                  className={cn(
+                    "w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
+                    isCollapsed && "justify-center",
+                  )}
+                  style={item.active ? {
+                    backgroundColor: '#ECFDF5',
+                    color: '#16A34A',
+                    borderLeft: '4px solid #16A34A'
+                  } : {
+                    color: '#6B7280'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!item.active) {
+                      e.target.style.backgroundColor = '#F1F5F9';
+                      e.target.style.color = '#111827';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!item.active) {
+                      e.target.style.backgroundColor = 'transparent';
+                      e.target.style.color = '#6B7280';
+                    }
+                  }}
+                  title={isCollapsed ? item.label : undefined}
+                >
+                  <item.icon className="h-5 w-5 flex-shrink-0" />
+                  {!isCollapsed && <span>{item.label}</span>}
+                </Link>
+              </li>
+            ))}
           </ul>
         </nav>
 
         {/* User Section */}
         {user && (
-          <div className="p-4 border-t border-gray-200">
-            <div className={`flex items-center ${sidebarOpen ? 'space-x-3' : 'justify-center'}`}>
-              <div className="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center">
-                <User className="w-6 h-6 text-white" />
+          <div className="p-4" style={{ borderTop: '1px solid #F1F5F9' }}>
+            <div className={cn(
+              "flex items-center space-x-3",
+              isCollapsed && "justify-center"
+            )}>
+              <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#16A34A' }}>
+                <User className="w-4 h-4 text-white" />
               </div>
-              {sidebarOpen && (
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-900">{user.name}</p>
-                  <p className="text-xs text-gray-500">{user.email}</p>
+              {!isCollapsed && (
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate" style={{ color: '#111827' }}>{user.name}</p>
+                  <p className="text-xs truncate" style={{ color: '#6B7280' }}>{user.email}</p>
                 </div>
               )}
             </div>
-            {sidebarOpen && (
-              <button
-                onClick={handleLogout}
-                className="mt-3 w-full flex items-center space-x-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-              >
-                <LogOut className="w-4 h-4" />
-                <span>Cerrar Sesión</span>
-              </button>
-            )}
+            
+            <div className={cn(
+              "mt-3 space-y-1",
+              isCollapsed && "flex flex-col items-center space-y-2"
+            )}>
+              {!isCollapsed ? (
+                <button
+                  onClick={handleLogout}
+                  className="w-full flex items-center space-x-2 px-3 py-2 text-sm rounded-lg"
+                  style={{ 
+                    color: '#DC2626',
+                    backgroundColor: 'transparent'
+                  }}
+                >
+                  <LogOut className="w-4 h-4" />
+                  <span>Cerrar Sesión</span>
+                </button>
+              ) : (
+                <button
+                  onClick={handleLogout}
+                  className="p-2 rounded-lg"
+                  style={{ 
+                    color: '#DC2626',
+                    backgroundColor: 'transparent'
+                  }}
+                  title="Cerrar Sesión"
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
+              )}
+            </div>
           </div>
         )}
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 overflow-hidden">
-        <main className="h-full overflow-y-auto">
-          {children}
+      <div className="flex-1 flex flex-col overflow-hidden" style={{ backgroundColor: '#ECFDF5' }}>
+        <main className="flex-1 overflow-y-auto">
+          <div className="min-h-full flex flex-col">
+            <div className="flex-1">
+              {children}
+            </div>
+            <Footer />
+          </div>
         </main>
       </div>
 
-      {/* Mobile overlay */}
-      {sidebarOpen && (
+      {/* Mobile Overlay */}
+      {!isCollapsed && (
         <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
-          onClick={() => setSidebarOpen(false)}
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+          onClick={() => setIsCollapsed(true)}
         />
       )}
     </div>
