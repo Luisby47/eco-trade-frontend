@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, Leaf } from 'lucide-react';
+import { Eye, EyeOff, Leaf, Upload, X, User } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -17,11 +17,13 @@ const Register = () => {
     full_name: '',
     location: '',
     gender: '',
-    phone: ''
+    phone: '',
+    profile_picture: ''
   });
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [previewImage, setPreviewImage] = useState(null);
   
   const { register: registerUser, isLoggedIn } = useAuth();
   const navigate = useNavigate();
@@ -37,6 +39,41 @@ const Register = () => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
     setError('');
+  };
+
+  const handleImageUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validar tipo de archivo
+    if (!file.type.startsWith('image/')) {
+      setError('Por favor selecciona una imagen válida');
+      return;
+    }
+
+    // Validar tamaño (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setError('La imagen debe ser menor a 5MB');
+      return;
+    }
+
+    // Convertir a base64 y crear preview
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64Image = event.target.result;
+      setPreviewImage(base64Image);
+      setFormData(prev => ({ ...prev, profile_picture: base64Image }));
+      setError('');
+    };
+    reader.onerror = () => {
+      setError('Error al leer la imagen');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const removeImage = () => {
+    setPreviewImage(null);
+    setFormData(prev => ({ ...prev, profile_picture: '' }));
   };
 
   const handleSubmit = async (e) => {
@@ -95,6 +132,59 @@ const Register = () => {
                 placeholder="Tu nombre completo"
                 className="mt-1"
               />
+            </div>
+
+            {/* Profile Picture Upload */}
+            <div>
+              <Label>Foto de Perfil (Opcional)</Label>
+              <div className="mt-2">
+                {previewImage ? (
+                  <div className="flex items-center gap-4">
+                    <div className="relative">
+                      <img
+                        src={previewImage}
+                        alt="Preview"
+                        className="w-24 h-24 rounded-full object-cover border-2 border-green-200"
+                      />
+                      <button
+                        type="button"
+                        onClick={removeImage}
+                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm text-gray-600">Imagen seleccionada</p>
+                      <button
+                        type="button"
+                        onClick={removeImage}
+                        className="text-sm text-red-600 hover:text-red-700"
+                      >
+                        Cambiar imagen
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <label className="flex items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-green-400 hover:bg-green-50 transition-colors">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="hidden"
+                    />
+                    <div className="text-center">
+                      <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                        <User className="w-6 h-6 text-gray-400" />
+                      </div>
+                      <p className="text-sm text-gray-600 mb-1">
+                        <span className="text-green-600 font-medium">Click para subir</span> o arrastra una imagen
+                      </p>
+                      <p className="text-xs text-gray-500">PNG, JPG hasta 5MB</p>
+                    </div>
+                  </label>
+                )}
+              </div>
             </div>
 
             <div>

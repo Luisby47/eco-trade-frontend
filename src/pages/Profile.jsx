@@ -1,22 +1,41 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Star, MapPin, Package, User, Plus, ShoppingBag, MessageCircle, Edit, Save, X } from 'lucide-react';
+import { Star, MapPin, Package, User, Plus, ShoppingBag, MessageCircle, Edit, Save, X, Camera } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/button';
+import { productsApi, reviewsApi, usersApi } from '../services/api';
+import ProductCard from '../components/ProductCard';
 
 /**
  * Enhanced user profile page matching reference design
  */
 const Profile = () => {
   const { id } = useParams();
-  const { user, isLoggedIn } = useAuth();
+  const { user, isLoggedIn, updateUser } = useAuth();
   
   // Estados para edición
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState({});
   
+  // Estados para productos
+  const [myProducts, setMyProducts] = useState([]);
+  const [loadingProducts, setLoadingProducts] = useState(true);
+  const [stats, setStats] = useState({
+    available: 0,
+    sold: 0,
+  });
+
+  // Estados para reviews
+  const [reviews, setReviews] = useState([]);
+  const [loadingReviews, setLoadingReviews] = useState(true);
+
+  // Estados para imagen de perfil
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const fileInputRef = useRef(null);
+  
   // For MVP, just show current user's profile
   const isOwnProfile = !id || (user && id === user.id);
+  const profileUser = isOwnProfile ? user : null;
 
   // Inicializar datos de edición cuando el usuario cambie
   useEffect(() => {
@@ -30,6 +49,57 @@ const Profile = () => {
       });
     }
   }, [user]);
+
+  // Cargar productos del usuario
+  useEffect(() => {
+    const loadMyProducts = async () => {
+      if (!isOwnProfile || !user) {
+        setLoadingProducts(false);
+        return;
+      }
+
+      try {
+        setLoadingProducts(true);
+        const products = await productsApi.getMyProducts();
+        setMyProducts(products);
+
+        // Calcular estadísticas
+        const available = products.filter(p => p.status === 'available').length;
+        const sold = products.filter(p => p.status === 'sold').length;
+        setStats({ available, sold });
+      } catch (error) {
+        console.error('Error loading products:', error);
+        setMyProducts([]);
+      } finally {
+        setLoadingProducts(false);
+      }
+    };
+
+    loadMyProducts();
+  }, [isOwnProfile, user]);
+
+  // Cargar reviews del usuario
+  useEffect(() => {
+    const loadReviews = async () => {
+      if (!profileUser) {
+        setLoadingReviews(false);
+        return;
+      }
+
+      try {
+        setLoadingReviews(true);
+        const reviewsData = await reviewsApi.getByUser(profileUser.id, { limit: 5 });
+        setReviews(reviewsData.reviews || []);
+      } catch (error) {
+        console.error('Error loading reviews:', error);
+        setReviews([]);
+      } finally {
+        setLoadingReviews(false);
+      }
+    };
+
+    loadReviews();
+  }, [profileUser]);
 
   // Funciones para manejar la edición
   const handleInputChange = (field, value) => {
@@ -57,18 +127,73 @@ const Profile = () => {
 
   const handleSaveEdit = async () => {
     try {
-      // Aquí iría la llamada a la API para actualizar el usuario
-      console.log('Guardando datos:', editData);
+      const updatedUser = await usersApi.updateProfile(editData);
       
-      // Por ahora solo simulamos el guardado
+      // Actualizar el contexto del usuario
+      updateUser(updatedUser);
+      
       alert('Información actualizada correctamente');
       setIsEditing(false);
-      
-      // En una implementación real, actualizarías el contexto del usuario aquí
-      // await updateUser(editData);
     } catch (error) {
       console.error('Error al guardar:', error);
       alert('Error al guardar la información');
+    }
+  };
+
+  const handleImageClick = () => {
+    if (isOwnProfile) {
+      fileInputRef.current?.click();
+    }
+  };
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validar tipo de archivo
+    if (!file.type.startsWith('image/')) {
+      alert('Por favor selecciona una imagen válida');
+      return;
+    }
+
+    // Validar tamaño (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('La imagen debe ser menor a 5MB');
+      return;
+    }
+
+    try {
+      setUploadingImage(true);
+
+      // Convertir a base64
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        try {
+          const base64Image = event.target.result;
+          
+          // Actualizar perfil con nueva imagen
+          const updatedUser = await usersApi.updateProfile({
+            profile_picture: base64Image
+          });
+
+          // Actualizar contexto con nueva imagen
+          updateUser(updatedUser);
+          setUploadingImage(false);
+        } catch (error) {
+          console.error('Error al actualizar imagen:', error);
+          alert('Error al actualizar la imagen de perfil');
+          setUploadingImage(false);
+        }
+      };
+      reader.onerror = () => {
+        alert('Error al leer la imagen');
+        setUploadingImage(false);
+      };
+      reader.readAsDataURL(file);
+    } catch (error) {
+      console.error('Error al procesar imagen:', error);
+      alert('Error al procesar la imagen');
+      setUploadingImage(false);
     }
   };
 
@@ -86,8 +211,6 @@ const Profile = () => {
       </div>
     );
   }
-
-  const profileUser = isOwnProfile ? user : null;
 
   if (!profileUser) {
     return (
@@ -111,8 +234,40 @@ const Profile = () => {
         <div className="bg-white rounded-2xl border border-green-100 overflow-hidden mb-8 shadow-sm">
           <div className="bg-gradient-to-r from-green-600 to-emerald-600 p-8 text-white">
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
-              <div className="w-24 h-24 bg-white/20 rounded-full flex items-center justify-center">
-                <User className="w-12 h-12 text-white" />
+              <div className="relative group">
+                <div className="w-24 h-24 bg-white/20 rounded-full flex items-center justify-center overflow-hidden">
+                  {profileUser.profile_picture ? (
+                    <img 
+                      src={profileUser.profile_picture} 
+                      alt={profileUser.full_name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <User className="w-12 h-12 text-white" />
+                  )}
+                </div>
+                {isOwnProfile && (
+                  <>
+                    <button
+                      onClick={handleImageClick}
+                      disabled={uploadingImage}
+                      className="absolute inset-0 w-24 h-24 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer disabled:cursor-not-allowed"
+                    >
+                      {uploadingImage ? (
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white" />
+                      ) : (
+                        <Camera className="w-6 h-6 text-white" />
+                      )}
+                    </button>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="hidden"
+                    />
+                  </>
+                )}
               </div>
               
               <div className="flex-1">
@@ -151,13 +306,13 @@ const Profile = () => {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
           <div className="bg-white rounded-xl border border-green-100 p-6 text-center shadow-sm">
             <Package className="w-8 h-8 text-green-600 mx-auto mb-3" />
-            <p className="text-2xl font-bold text-gray-900 mb-1">0</p>
+            <p className="text-2xl font-bold text-gray-900 mb-1">{stats.available}</p>
             <p className="text-gray-600">Productos Disponibles</p>
           </div>
           
           <div className="bg-white rounded-xl border border-green-100 p-6 text-center shadow-sm">
             <ShoppingBag className="w-8 h-8 text-blue-600 mx-auto mb-3" />
-            <p className="text-2xl font-bold text-gray-900 mb-1">0</p>
+            <p className="text-2xl font-bold text-gray-900 mb-1">{stats.sold}</p>
             <p className="text-gray-600">Productos Vendidos</p>
           </div>
           
@@ -174,75 +329,192 @@ const Profile = () => {
           <div className="bg-white rounded-xl border border-green-100 overflow-hidden shadow-sm">
             <div className="px-6 py-4 border-b border-gray-100">
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-gray-900">Mis Productos (0)</h2>
+                <h2 className="text-lg font-semibold text-gray-900">
+                  Mis Productos ({myProducts.length})
+                </h2>
                 {isOwnProfile && (
-                  <Link to="/post">
-                    <Button size="sm" className="bg-green-600 hover:bg-green-700">
-                      <Plus className="w-4 h-4 mr-2" />
-                      Publicar
+                  <Link to="/my-products">
+                    <Button size="sm" variant="outline">
+                      Ver Todos
                     </Button>
                   </Link>
                 )}
               </div>
             </div>
-            <div className="p-8 text-center">
-              <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                No tienes productos publicados
-              </h3>
-              <p className="text-gray-600 mb-6">
-                Comienza a vender tu ropa de segunda mano y contribuye a la moda sostenible
-              </p>
-              {isOwnProfile && (
-                <Link to="/post">
-                  <Button className="bg-green-600 hover:bg-green-700">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Publicar Primer Producto
-                  </Button>
-                </Link>
-              )}
-            </div>
+            
+            {loadingProducts ? (
+              <div className="p-8">
+                <div className="animate-pulse space-y-4">
+                  <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                  <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+                  <div className="h-4 bg-gray-200 rounded w-2/3"></div>
+                </div>
+              </div>
+            ) : myProducts.length > 0 ? (
+              <div className="p-6">
+                <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
+                  {myProducts.slice(0, 3).map((product) => (
+                    <Link 
+                      key={product.id} 
+                      to={`/product/${product.id}`}
+                      className="flex items-center gap-4 p-3 rounded-lg hover:bg-gray-50 transition-colors border border-gray-100"
+                    >
+                      <img
+                        src={product.images?.[0] || '/placeholder-product.png'}
+                        alt={product.title}
+                        className="w-16 h-16 object-cover rounded-lg"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-medium text-gray-900 truncate">
+                          {product.title}
+                        </h3>
+                        <p className="text-sm text-gray-500 capitalize">
+                          {product.category} · {product.condition}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-semibold text-green-600">
+                          ₡{product.price.toLocaleString()}
+                        </p>
+                        <span className={`text-xs px-2 py-1 rounded-full ${
+                          product.status === 'available' 
+                            ? 'bg-green-100 text-green-700' 
+                            : 'bg-gray-100 text-gray-600'
+                        }`}>
+                          {product.status === 'available' ? 'Disponible' : 'Vendido'}
+                        </span>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+                
+                {myProducts.length > 3 && (
+                  <div className="mt-6 text-center">
+                    <Link to="/my-products">
+                      <Button variant="outline" className="w-full">
+                        Ver todos los productos ({myProducts.length})
+                      </Button>
+                    </Link>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="p-8 text-center">
+                <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  No tienes productos publicados
+                </h3>
+                <p className="text-gray-600 mb-6">
+                  Comienza a vender tu ropa de segunda mano y contribuye a la moda sostenible
+                </p>
+                {isOwnProfile && (
+                  <Link to="/post">
+                    <Button className="bg-green-600 hover:bg-green-700">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Publicar Primer Producto
+                    </Button>
+                  </Link>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Reviews Card */}
           <div className="bg-white rounded-xl border border-green-100 overflow-hidden shadow-sm">
             <div className="px-6 py-4 border-b border-gray-100">
-              <h2 className="text-lg font-semibold text-gray-900">Reseñas (0)</h2>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Reseñas ({profileUser.total_reviews})
+              </h2>
             </div>
-            <div className="p-8 text-center">
-              {profileUser.total_reviews > 0 ? (
-                <>
-                  <div className="text-4xl font-bold text-green-600 mb-4">
-                    {profileUser.rating.toFixed(1)}
+            
+            {loadingReviews ? (
+              <div className="p-8">
+                <div className="animate-pulse space-y-4">
+                  <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                  <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+                </div>
+              </div>
+            ) : profileUser.total_reviews > 0 && reviews.length > 0 ? (
+              <div className="divide-y divide-gray-100">
+                {/* Rating Summary */}
+                <div className="p-6 bg-gray-50">
+                  <div className="text-center">
+                    <div className="text-4xl font-bold text-green-600 mb-2">
+                      {profileUser.rating.toFixed(1)}
+                    </div>
+                    <div className="flex items-center justify-center mb-2">
+                      {[...Array(5)].map((_, i) => (
+                        <Star 
+                          key={i} 
+                          className={`w-5 h-5 ${
+                            i < Math.round(profileUser.rating) 
+                              ? 'text-yellow-500 fill-current' 
+                              : 'text-gray-300'
+                          }`} 
+                        />
+                      ))}
+                    </div>
+                    <p className="text-sm text-gray-600">
+                      Basado en {profileUser.total_reviews} {profileUser.total_reviews === 1 ? 'reseña' : 'reseñas'}
+                    </p>
                   </div>
-                  <div className="flex items-center justify-center mb-4">
-                    {[...Array(5)].map((_, i) => (
-                      <Star 
-                        key={i} 
-                        className={`w-6 h-6 ${
-                          i < Math.round(profileUser.rating) 
-                            ? 'text-yellow-500 fill-current' 
-                            : 'text-gray-300'
-                        }`} 
-                      />
-                    ))}
-                  </div>
-                  <p className="text-gray-600">
-                    Basado en {profileUser.total_reviews} reseñas
-                  </p>
-                </>
-              ) : (
-                <>
-                  <Star className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">
-                    Sin reseñas aún
-                  </h3>
-                  <p className="text-gray-600">
-                    Las reseñas aparecerán aquí después de completar transacciones
-                  </p>
-                </>
-              )}
-            </div>
+                </div>
+
+                {/* Reviews List */}
+                <div className="p-4 space-y-4 max-h-[400px] overflow-y-auto pr-2">
+                  {reviews.map((review) => (
+                    <div key={review.id} className="p-4 bg-gray-50 rounded-lg">
+                      <div className="flex items-start gap-3">
+                        <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+                          <User className="w-5 h-5 text-green-600" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between mb-2">
+                            <p className="font-semibold text-gray-900">
+                              {review.reviewer?.full_name || 'Usuario'}
+                            </p>
+                            <div className="flex items-center gap-1">
+                              {[...Array(5)].map((_, i) => (
+                                <Star
+                                  key={i}
+                                  className={`w-4 h-4 ${
+                                    i < review.rating
+                                      ? 'text-yellow-500 fill-current'
+                                      : 'text-gray-300'
+                                  }`}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                          {review.comment && (
+                            <p className="text-sm text-gray-700 mb-2">
+                              {review.comment}
+                            </p>
+                          )}
+                          <p className="text-xs text-gray-500">
+                            {new Date(review.created_at).toLocaleDateString('es-CR', {
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric'
+                            })}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="p-8 text-center">
+                <Star className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  Sin reseñas aún
+                </h3>
+                <p className="text-gray-600">
+                  Las reseñas aparecerán aquí después de completar transacciones
+                </p>
+              </div>
+            )}
           </div>
         </div>
 

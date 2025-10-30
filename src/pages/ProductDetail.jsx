@@ -6,6 +6,7 @@ import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Alert, AlertDescription } from '../components/ui/alert';
+import { productsApi, questionsApi, purchasesApi } from '../services/api';
 
 import QASection from '../components/products/QASection';
 import PurchaseModal from '../components/products/PurchaseModal';
@@ -40,68 +41,33 @@ export default function ProductDetail() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // Datos de ejemplo para mostrar la funcionalidad
-  const mockProduct = {
-    id: productId,
-    title: "Camisa Vintage de Algodón",
-    price: 12500,
-    description: "Hermosa camisa vintage de algodón 100% en excelente estado. Perfecta para looks casuales o formales. Ha sido cuidada con mucho amor y apenas tiene signos de uso.\n\nDetalles:\n• Material: Algodón 100%\n• Color: Azul claro\n• Marca: No brand\n• Origen: Costa Rica\n\nIdeal para personas que buscan piezas únicas y sostenibles.",
-    category: "camisas",
-    condition: "poco_uso",
-    size: "M",
-    location: "San José, Costa Rica",
-    status: "available",
-    images: [
-      "https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=600&h=600&fit=crop",
-      "https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=600&h=600&fit=crop",
-      "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=600&h=600&fit=crop"
-    ],
-    seller_id: "seller123"
-  };
-
-  const mockSeller = {
-    id: "seller123",
-    full_name: "María González",
-    location: "San José",
-    rating: 4.8,
-    total_reviews: 23,
-    profile_picture: null
-  };
-
-  const mockQuestions = [
-    {
-      id: "q1",
-      question: "¿Está en buen estado? ¿Tiene algún detalle?",
-      user_name: "Carlos Ruiz",
-      created_date: "2025-09-19",
-      answers: [
-        {
-          id: "a1",
-          answer: "¡Hola! Sí, está en excelente estado. Solo tiene un pequeño desvanecimiento natural del color por el uso, pero nada notable. La he cuidado muy bien.",
-          created_date: "2025-09-19"
-        }
-      ]
-    },
-    {
-      id: "q2",
-      question: "¿Hacés envíos a Cartago?",
-      user_name: "Ana Jiménez",
-      created_date: "2025-09-18",
-      answers: []
-    }
-  ];
-
   const loadProductData = useCallback(async () => {
     try {
       setIsLoading(true);
+      setError("");
       
-      // Simular carga de datos
-      setTimeout(() => {
-        setProduct(mockProduct);
-        setSeller(mockSeller);
-        setQuestions(mockQuestions);
+      // Load product data from API
+      const productData = await productsApi.getById(productId);
+      
+      if (!productData) {
+        setError("Producto no encontrado");
         setIsLoading(false);
-      }, 1000);
+        return;
+      }
+
+      setProduct(productData);
+      setSeller(productData.seller);
+      
+      // Load questions for this product
+      try {
+        const questionsData = await questionsApi.getByProduct(productId);
+        setQuestions(questionsData || []);
+      } catch (err) {
+        console.error("Error loading questions:", err);
+        setQuestions([]);
+      }
+      
+      setIsLoading(false);
       
     } catch (error) {
       setError("Error al cargar el producto");
@@ -120,23 +86,32 @@ export default function ProductDetail() {
 
   const handlePurchase = async (purchaseData) => {
     try {
-      // Simular creación de compra
-      console.log('Creando compra:', {
+      // Verificar que el usuario no esté comprando su propio producto
+      if (user.id === product.seller_id) {
+        setError("No puedes comprar tu propio producto");
+        return;
+      }
+
+      // Create purchase via API
+      await purchasesApi.create({
         product_id: productId,
-        buyer_id: user.id,
         seller_id: product.seller_id,
         buyer_name: purchaseData.name,
         buyer_email: purchaseData.email,
         buyer_phone: purchaseData.phone,
-        status: "pending"
       });
 
-      // Simular éxito
       setShowPurchaseModal(false);
-      alert('¡Compra iniciada! Se ha creado un chat con el vendedor.');
-      navigate('/chats');
+      alert('¡Compra iniciada! El vendedor ha sido notificado.');
+      
+      // Reload product to update status
+      await loadProductData();
+      
+      // Navigate to purchases page or chat
+      navigate('/profile');
     } catch (error) {
-      setError("Error al procesar la compra. Intenta de nuevo.");
+      const errorMessage = error.response?.data?.message || "Error al procesar la compra. Intenta de nuevo.";
+      setError(errorMessage);
       console.error("Error processing purchase:", error);
     }
   };

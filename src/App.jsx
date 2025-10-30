@@ -7,6 +7,7 @@ import Browse from './pages/Browse';
 import ProductDetail from './pages/ProductDetail';
 import PostProduct from './pages/PostProduct';
 import Profile from './pages/Profile';
+import MyProducts from './pages/MyProducts';
 import Chat from './pages/Chat';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -29,6 +30,7 @@ function App() {
               <Route path="/product/:id" element={<ProductDetail />} />
               <Route path="/post" element={<PostProduct />} />
               <Route path="/profile/:id?" element={<Profile />} />
+              <Route path="/my-products" element={<MyProducts />} />
               <Route path="/chats" element={<Chat />} />
               <Route path="/subscriptions" element={<Subscriptions />} />
               <Route path="/statistics" element={<Statistics />} />

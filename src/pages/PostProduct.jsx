@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Upload, X, Plus, CheckCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { productsApi } from '../services/api';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Textarea } from '../components/ui/textarea';
@@ -37,7 +38,12 @@ export default function PostProduct() {
   }, [user]);
 
   const handleInputChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    console.log('handleInputChange called:', field, value);
+    setFormData(prev => {
+      const updated = { ...prev, [field]: value };
+      console.log('Updated formData:', updated);
+      return updated;
+    });
     setError("");
   };
 
@@ -46,6 +52,8 @@ export default function PostProduct() {
     if (files.length === 0) return;
 
     setIsUploading(true);
+    setError("");
+    
     try {
       for (const file of files) {
         if (images.length >= 5) {
@@ -53,17 +61,25 @@ export default function PostProduct() {
           break;
         }
 
-        // Por ahora simularemos la carga de imágenes
+        // Convertir imagen a base64 para preview
         const reader = new FileReader();
         reader.onload = (event) => {
-          setImages(prev => [...prev, event.target.result]);
+          setImages(prev => {
+            if (prev.length >= 5) return prev;
+            return [...prev, event.target.result];
+          });
+        };
+        reader.onerror = () => {
+          setError("Error al leer la imagen");
         };
         reader.readAsDataURL(file);
       }
-    } catch (error) {
-      setError("Error al subir las imágenes");
+    } catch (err) {
+      console.error('Error al subir imágenes:', err);
+      setError("Error al procesar las imágenes");
+    } finally {
+      setIsUploading(false);
     }
-    setIsUploading(false);
   };
 
   const removeImage = (indexToRemove) => {
@@ -72,8 +88,35 @@ export default function PostProduct() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Debug: ver qué campos están vacíos
+    console.log('FormData:', formData);
+    
+    // Validaciones
     if (images.length === 0) {
       setError("Agrega al menos una imagen del producto");
+      return;
+    }
+
+    // Validar campos individuales para mensajes más específicos
+    const missingFields = [];
+    if (!formData.title?.trim()) missingFields.push('Título');
+    if (!formData.category) missingFields.push('Categoría');
+    if (!formData.description?.trim()) missingFields.push('Descripción');
+    if (!formData.price) missingFields.push('Precio');
+    if (!formData.size) missingFields.push('Talla');
+    if (!formData.condition) missingFields.push('Condición');
+    if (!formData.location?.trim()) missingFields.push('Ubicación');
+    if (!formData.gender) missingFields.push('Género');
+
+    if (missingFields.length > 0) {
+      setError(`Campos faltantes: ${missingFields.join(', ')}`);
+      return;
+    }
+
+    const priceNum = parseInt(formData.price, 10);
+    if (isNaN(priceNum) || priceNum <= 0) {
+      setError("El precio debe ser un número mayor a 0");
       return;
     }
 
@@ -81,25 +124,39 @@ export default function PostProduct() {
     setError("");
 
     try {
-      // Aquí iría la llamada a la API para crear el producto
-      console.log('Creando producto:', {
-        ...formData,
-        price: parseFloat(formData.price),
-        images,
-        seller_id: user.id,
-        status: "available"
-      });
+      // Preparar datos del producto para el backend
+      const productData = {
+        title: formData.title.trim(),
+        category: formData.category,
+        description: formData.description.trim(),
+        price: priceNum,
+        size: formData.size,
+        condition: formData.condition,
+        location: formData.location.trim(),
+        gender: formData.gender,
+        images: images, // Array de URLs de imágenes (base64 o URLs)
+        featured: false
+      };
 
-      // Simular éxito
+      // Crear producto en el backend
+      const createdProduct = await productsApi.create(productData);
+      
+      console.log('Producto creado exitosamente:', createdProduct);
+      
+      // Mostrar éxito
       setSuccess(true);
       setTimeout(() => {
         navigate('/profile');
       }, 2000);
 
-    } catch (error) {
-      setError("Error al publicar el producto. Intenta de nuevo.");
+    } catch (err) {
+      console.error('Error al crear producto:', err);
+      const errorMessage = err.response?.data?.message || 
+                          err.response?.data?.error ||
+                          "Error al publicar el producto. Verifica los datos e intenta de nuevo.";
+      setError(errorMessage);
+      setIsSubmitting(false);
     }
-    setIsSubmitting(false);
   };
 
   if (!isLoggedIn) {
@@ -246,7 +303,7 @@ export default function PostProduct() {
 
                 <div>
                   <Label>Categoría *</Label>
-                  <Select value={formData.category} onValueChange={(value) => handleInputChange("category", value)} required>
+                  <Select value={formData.category} onValueChange={(value) => handleInputChange("category", value)}>
                     <SelectTrigger className="mt-1">
                       <SelectValue placeholder="Seleccionar" />
                     </SelectTrigger>
@@ -265,21 +322,21 @@ export default function PostProduct() {
                 
                 <div>
                   <Label>Género *</Label>
-                  <Select value={formData.gender} onValueChange={(value) => handleInputChange("gender", value)} required>
+                  <Select value={formData.gender} onValueChange={(value) => handleInputChange("gender", value)}>
                     <SelectTrigger className="mt-1">
                       <SelectValue placeholder="Seleccionar" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="femenino">Femenino</SelectItem>
                       <SelectItem value="masculino">Masculino</SelectItem>
-                      <SelectItem value="unisex">Unisex</SelectItem>
+                      <SelectItem value="otro">Unisex</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div>
                   <Label>Talla *</Label>
-                  <Select value={formData.size} onValueChange={(value) => handleInputChange("size", value)} required>
+                  <Select value={formData.size} onValueChange={(value) => handleInputChange("size", value)}>
                     <SelectTrigger className="mt-1">
                       <SelectValue placeholder="Seleccionar" />
                     </SelectTrigger>
@@ -305,7 +362,7 @@ export default function PostProduct() {
 
                 <div>
                   <Label>Condición *</Label>
-                  <Select value={formData.condition} onValueChange={(value) => handleInputChange("condition", value)} required>
+                  <Select value={formData.condition} onValueChange={(value) => handleInputChange("condition", value)}>
                     <SelectTrigger className="mt-1">
                       <SelectValue placeholder="Seleccionar" />
                     </SelectTrigger>

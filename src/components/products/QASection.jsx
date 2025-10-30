@@ -8,28 +8,30 @@ import { Alert, AlertDescription } from '../ui/alert';
 export default function QASection({ productId, questions, user, onQuestionAdded, sellerId }) {
   const [newQuestion, setNewQuestion] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState("");
 
   const handleSubmitQuestion = async (e) => {
     e.preventDefault();
     if (!newQuestion.trim() || !user) return;
 
     setIsSubmitting(true);
+    setError("");
     try {
-      // Simular creación de pregunta
-      console.log('Creando pregunta:', {
-        product_id: productId,
-        user_id: user.id,
-        question: newQuestion.trim()
-      });
-
-      // Simular éxito
+      // Crear pregunta en el backend
+      await import('../../services/api').then(({ questionsApi }) =>
+        questionsApi.create({
+          product_id: productId,
+          question: newQuestion.trim(),
+        })
+      );
       setNewQuestion('');
       if (onQuestionAdded) {
         onQuestionAdded();
       }
       alert('Pregunta enviada correctamente');
-    } catch (error) {
-      console.error('Error al enviar pregunta:', error);
+    } catch (err) {
+      setError('Error al enviar la pregunta');
+      console.error('Error al enviar pregunta:', err);
       alert('Error al enviar la pregunta');
     } finally {
       setIsSubmitting(false);
@@ -55,6 +57,11 @@ export default function QASection({ productId, questions, user, onQuestionAdded,
               className="min-h-[100px]"
               disabled={isSubmitting}
             />
+            {error && (
+              <Alert>
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
             <Button 
               type="submit" 
               disabled={!newQuestion.trim() || isSubmitting}
@@ -106,7 +113,6 @@ export default function QASection({ productId, questions, user, onQuestionAdded,
                     Por {question.user_name} • {new Date(question.created_date).toLocaleDateString()}
                   </p>
                 </div>
-                
                 {question.answers && question.answers.length > 0 && (
                   <div className="ml-4 space-y-2">
                     {question.answers.map((answer) => (
@@ -121,7 +127,6 @@ export default function QASection({ productId, questions, user, onQuestionAdded,
                     ))}
                   </div>
                 )}
-                
                 {(!question.answers || question.answers.length === 0) && (
                   <p className="text-sm text-gray-500 ml-4 italic">
                     Esperando respuesta del vendedor...

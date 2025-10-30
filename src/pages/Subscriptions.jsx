@@ -110,7 +110,7 @@ export default function Subscriptions() {
         "Estadísticas de ventas",
         "Perfil verificado",
         "Soporte prioritario",
-        "Badge de vendedor premium"
+
       ],
       popular: true,
       color: "blue"
@@ -126,10 +126,9 @@ export default function Subscriptions() {
         "15 productos destacados",
         "Estadísticas avanzadas",
         "Analytics detallados",
-        "Perfil destacado",
-        "Soporte 24/7",
-        "Badge de vendedor profesional",
-        "Descuentos en promociones"
+        //"Perfil destacado",
+        "Soporte prioritario",
+        //"Badge de vendedor profesional",
       ],
       popular: false,
       color: "purple"

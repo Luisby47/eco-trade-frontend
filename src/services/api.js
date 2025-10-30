@@ -134,6 +134,12 @@ export const usersApi = {
 
   async updateProfile(userData) {
     const response = await api.put('/users/profile', userData);
+    // Update localStorage with new user data
+    if (response.data) {
+      const currentUser = getCurrentUser();
+      const updatedUser = { ...currentUser, ...response.data };
+      localStorage.setItem('ecotrade_user', JSON.stringify(updatedUser));
+    }
     return response.data;
   }
 };
@@ -224,6 +230,31 @@ export const reviewsApi = {
 
   async delete(id) {
     const response = await api.delete(`/reviews/${id}`);
+    return response.data;
+  }
+};
+
+/**
+ * Chat API
+ */
+export const chatApi = {
+  async sendMessage(messageData) {
+    const response = await api.post('/chat/messages', messageData);
+    return response.data;
+  },
+
+  async getAllChats() {
+    const response = await api.get('/chat');
+    return response.data;
+  },
+
+  async getMessagesByPurchase(purchaseId) {
+    const response = await api.get(`/chat/purchase/${purchaseId}`);
+    return response.data;
+  },
+
+  async deleteMessage(id) {
+    const response = await api.delete(`/chat/messages/${id}`);
     return response.data;
   }
 };
