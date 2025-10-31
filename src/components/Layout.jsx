@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useSubscription } from '../hooks/useSubscription';
 import Footer from './Footer';
 import { 
   Home, 
@@ -31,6 +32,7 @@ const Layout = ({ children }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const { user, logout } = useAuth();
+  const { subscription } = useSubscription();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -41,15 +43,26 @@ const Layout = ({ children }) => {
 
   const isActive = (path) => location.pathname === path;
 
-  const navigationItems = [
+  // Check if user has analytics access (premium or profesional)
+  const hasAnalyticsAccess = subscription?.plan === 'premium' || subscription?.plan === 'profesional';
+
+  const allNavigationItems = [
     { path: '/', icon: Home, label: 'Inicio', active: isActive('/') },
     { path: '/browse', icon: Search, label: 'Explorar', active: isActive('/browse') },
     { path: '/post', icon: Plus, label: 'Publicar', active: isActive('/post') },
     { path: '/subscriptions', icon: Star, label: 'Suscripciones', active: isActive('/subscriptions') },
-    { path: '/statistics', icon: BarChart3, label: 'Estadísticas', active: isActive('/statistics') },
+    { path: '/statistics', icon: BarChart3, label: 'Estadísticas', active: isActive('/statistics'), requiresAnalytics: true },
     { path: '/profile', icon: User, label: 'Perfil', active: isActive('/profile') },
     { path: '/chats', icon: MessageCircle, label: 'Mensajes', active: isActive('/chats') },
   ];
+
+  // Filter navigation items based on subscription
+  const navigationItems = allNavigationItems.filter(item => {
+    if (item.requiresAnalytics && !hasAnalyticsAccess) {
+      return false;
+    }
+    return true;
+  });
 
   const handleSearch = (e) => {
     e.preventDefault();

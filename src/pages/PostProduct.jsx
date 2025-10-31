@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Upload, X, Plus, CheckCircle } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
+import { Upload, X, Plus, CheckCircle, AlertTriangle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useSubscription } from '../hooks/useSubscription';
 import { productsApi } from '../services/api';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -14,6 +15,7 @@ import { Alert, AlertDescription } from '../components/ui/alert';
 export default function PostProduct() {
   const { user, isLoggedIn } = useAuth();
   const navigate = useNavigate();
+  const { subscription, limits, loading: loadingSubscription, canPublish } = useSubscription();
   
   const [formData, setFormData] = useState({
     title: "",
@@ -30,6 +32,7 @@ export default function PostProduct() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const [limitReached, setLimitReached] = useState(false);
 
   useEffect(() => {
     if (user && user.location) {
@@ -91,6 +94,15 @@ export default function PostProduct() {
     
     // Debug: ver qué campos están vacíos
     console.log('FormData:', formData);
+
+    // Verificar límite de productos
+    const canPublishProduct = await canPublish();
+    if (!canPublishProduct) {
+      setLimitReached(true);
+      setError("Has alcanzado el límite de productos de tu plan actual");
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
     
     // Validaciones
     if (images.length === 0) {
@@ -220,7 +232,39 @@ export default function PostProduct() {
           </p>
         </div>
 
-        {error && (
+        {/* Subscription Limits Warning */}
+        {limits && (
+          <Alert className="mb-6 border-blue-200 bg-blue-50">
+            <AlertDescription className="text-blue-900">
+              <strong>Plan {subscription?.plan || 'Básico'}:</strong> {limits.current_products_count} de {limits.products_limit} productos publicados
+              {limits.current_products_count >= limits.products_limit * 0.8 && (
+                <span className="ml-2 text-orange-600">
+                  (Cerca del límite)
+                </span>
+              )}
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Limit Reached Error */}
+        {limitReached && (
+          <Alert variant="destructive" className="mb-6">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>
+              <div className="font-semibold mb-2">Has alcanzado el límite de productos de tu plan</div>
+              <p className="text-sm mb-3">
+                Plan {subscription?.plan || 'Básico'}: {limits?.products_limit} productos máximo
+              </p>
+              <Link to="/subscriptions">
+                <Button variant="outline" size="sm" className="bg-white">
+                  Ver Planes Premium
+                </Button>
+              </Link>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {error && !limitReached && (
           <Alert variant="destructive" className="mb-6">
             <AlertDescription>{error}</AlertDescription>
           </Alert>

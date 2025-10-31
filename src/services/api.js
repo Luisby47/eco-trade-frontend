@@ -260,6 +260,61 @@ export const chatApi = {
 };
 
 /**
+ * Subscriptions API
+ */
+export const subscriptionsApi = {
+  async create(subscriptionData) {
+    const response = await api.post('/subscriptions', subscriptionData);
+    return response.data;
+  },
+
+  async getMySubscriptions() {
+    const response = await api.get('/subscriptions/my-subscriptions');
+    return response.data;
+  },
+
+  async getActive() {
+    const response = await api.get('/subscriptions/active');
+    return response.data;
+  },
+
+  async getLimits() {
+    const response = await api.get('/subscriptions/limits');
+    return response.data;
+  },
+
+  async canPublish() {
+    const response = await api.get('/subscriptions/can-publish');
+    return response.data;
+  },
+
+  async canFeature() {
+    const response = await api.get('/subscriptions/can-feature');
+    return response.data;
+  },
+
+  async hasAnalytics() {
+    const response = await api.get('/subscriptions/has-analytics');
+    return response.data;
+  },
+
+  async getOne(id) {
+    const response = await api.get(`/subscriptions/${id}`);
+    return response.data;
+  },
+
+  async update(id, updateData) {
+    const response = await api.patch(`/subscriptions/${id}`, updateData);
+    return response.data;
+  },
+
+  async cancel(id) {
+    const response = await api.delete(`/subscriptions/${id}`);
+    return response.data;
+  }
+};
+
+/**
  * Utility functions
  */
 export const getCurrentUser = () => {

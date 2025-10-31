@@ -4,11 +4,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import { Button } from "../components/ui/button";
 import { Alert, AlertDescription } from "../components/ui/alert";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
-import { DollarSign, Package, TrendingUp, Crown, AlertCircle, BarChart3 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { DollarSign, Package, TrendingUp, Crown, AlertCircle, BarChart3, Lock } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { es } from 'date-fns/locale';
 import { useAuth } from '../contexts/AuthContext';
+import { useSubscription } from '../hooks/useSubscription';
 
 const COLORS = ['#16a34a', '#22c55e', '#4ade80', '#86efac', '#bbf7d0', '#6ee7b7', '#34d399'];
 
@@ -25,6 +26,8 @@ const categoryLabels = {
 
 export default function Statistics() {
     const { user } = useAuth();
+    const { subscription: userSubscription, loading: loadingSubscription } = useSubscription();
+    const navigate = useNavigate();
     const [subscription, setSubscription] = useState(null);
     const [stats, setStats] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -86,9 +89,12 @@ export default function Statistics() {
         };
 
         loadData();
-    }, [user]);
+    }, [user, mockSubscription, mockStats]);
 
-    if (isLoading) {
+    // Check if user has analytics access with real subscription data
+    const hasAnalyticsAccess = userSubscription?.analytics_enabled === true;
+
+    if (isLoading || loadingSubscription) {
         return (
             <div className="p-6">
                 <div className="max-w-6xl mx-auto animate-pulse">
@@ -125,21 +131,27 @@ export default function Statistics() {
         );
     }
 
-    if (!subscription || !subscription.analytics_enabled) {
+    // Check real subscription instead of mock
+    if (!hasAnalyticsAccess) {
         return (
             <div className="p-6">
                 <div className="max-w-3xl mx-auto text-center py-16">
-                    <AlertCircle className="w-16 h-16 text-amber-500 mx-auto mb-6" />
+                    <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-br from-amber-100 to-orange-100 flex items-center justify-center">
+                        <Lock className="w-10 h-10 text-amber-600" />
+                    </div>
                     <h2 className="text-3xl font-bold text-gray-900 mb-4">
                         Acceso Premium Requerido
                     </h2>
-                    <p className="text-lg text-gray-600 mb-8">
-                        Las estadísticas de ventas son una función exclusiva para nuestros vendedores Premium y Profesionales.
+                    <p className="text-lg text-gray-600 mb-4">
+                        Las estadísticas de ventas son una función exclusiva para suscriptores <strong>Premium</strong> y <strong>Profesional</strong>.
+                    </p>
+                    <p className="text-gray-500 mb-8">
+                        Tu plan actual: <strong>{userSubscription?.plan ? userSubscription.plan.charAt(0).toUpperCase() + userSubscription.plan.slice(1) : 'Básico'}</strong>
                     </p>
                     <Link to="/subscriptions">
-                        <Button size="lg" className="bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold shadow-lg">
+                        <Button size="lg" className="bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold shadow-lg hover:shadow-xl transition-shadow">
                             <Crown className="w-5 h-5 mr-2" />
-                            Ver Planes Premium
+                            Actualizar Plan
                         </Button>
                     </Link>
                 </div>

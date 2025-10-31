@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Check, Star, TrendingUp, Zap, Crown, Target, BarChart3, AlertCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { subscriptionsApi } from '../services/api';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
@@ -24,19 +25,78 @@ export default function Subscriptions() {
 
   const loadUserAndSubscription = async () => {
     try {
-      // Simular carga de suscripción actual
-      // En implementación real, aquí harías la llamada a la API
-      setTimeout(() => {
-        setCurrentSubscription(null); // Por ahora no hay suscripción activa
-        setIsLoading(false);
-      }, 1000);
+      const activeSubscription = await subscriptionsApi.getActive();
+      
+      console.log('🔍 Subscription received from API:', activeSubscription);
+      
+      // Always set the subscription, even if it's basico (default plan)
+      if (activeSubscription) {
+        setCurrentSubscription({
+          id: activeSubscription.id,
+          plan: activeSubscription.plan,
+          billing_cycle: activeSubscription.billing_cycle || 'mensual',
+          end_date: activeSubscription.end_date,
+          status: activeSubscription.status || 'activa'
+        });
+      } else {
+        setCurrentSubscription(null);
+      }
+      
+      setIsLoading(false);
     } catch (error) {
       console.error("Error loading subscription:", error);
       setIsLoading(false);
     }
   };
 
+  const handleCancelSubscription = async () => {
+    if (!currentSubscription?.id) {
+      alert("No hay suscripción activa para cancelar");
+      return;
+    }
+
+    const confirmCancel = window.confirm(
+      `¿Estás seguro que deseas cancelar tu suscripción ${currentSubscription.plan}? ` +
+      `Podrás seguir usando los beneficios hasta ${new Date(currentSubscription.end_date).toLocaleDateString()}`
+    );
+
+    if (!confirmCancel) return;
+
+    try {
+      await subscriptionsApi.cancel(currentSubscription.id);
+      alert("Suscripción cancelada exitosamente. Seguirás teniendo acceso hasta la fecha de vencimiento.");
+      loadUserAndSubscription();
+    } catch (error) {
+      console.error("Error canceling subscription:", error);
+      alert(error.response?.data?.message || "Error al cancelar la suscripción. Intenta de nuevo.");
+    }
+  };
+
   const handleSubscribe = async (planType, billingCycle) => {
+    // Check if user has active subscription (not basico) and needs to cancel first
+    if (currentSubscription && 
+        currentSubscription.plan !== 'basico' && 
+        currentSubscription.status === 'activa' &&
+        currentSubscription.id) {
+      const confirmChange = window.confirm(
+        `Ya tienes una suscripción ${currentSubscription.plan} activa. ` +
+        `¿Deseas cancelarla y cambiar a ${planType} ${billingCycle}?`
+      );
+
+      if (!confirmChange) return;
+
+      // Cancel current subscription first
+      try {
+        await subscriptionsApi.cancel(currentSubscription.id);
+        // Wait a bit for the cancellation to process
+        await new Promise(resolve => setTimeout(resolve, 500));
+      } catch (error) {
+        console.error("Error canceling current subscription:", error);
+        alert("Error al cancelar la suscripción actual. Intenta de nuevo.");
+        return;
+      }
+    }
+
     const plans = {
       basico: { monthly: 0, annual: 0, featured: 1, products: 10 },
       premium: { monthly: 3500, annual: 35000, featured: 5, products: 50 },
@@ -46,6 +106,7 @@ export default function Subscriptions() {
     const plan = plans[planType];
     const price = billingCycle === "mensual" ? plan.monthly : plan.annual;
     
+    const startDate = new Date();
     const endDate = new Date();
     if (billingCycle === "mensual") {
       endDate.setMonth(endDate.getMonth() + 1);
@@ -54,31 +115,45 @@ export default function Subscriptions() {
     }
 
     try {
-      // Simular creación de suscripción
-      console.log('Creando suscripción:', {
-        user_id: user.id,
+      const subscriptionData = {
         plan: planType,
         billing_cycle: billingCycle,
-        price: price,
-        start_date: new Date().toISOString().split('T')[0],
-        end_date: endDate.toISOString().split('T')[0],
-        status: "activa",
-        featured_products_limit: plan.featured,
-        products_limit: plan.products,
-        analytics_enabled: planType !== "basico"
-      });
+        price: Number(price),
+        start_date: startDate.toISOString(),
+        end_date: endDate.toISOString(),
+        featured_products_limit: Number(plan.featured),
+        products_limit: Number(plan.products),
+        analytics_enabled: Boolean(planType !== "basico")
+      };
 
-      // Simular suscripción exitosa
-      setCurrentSubscription({
-        plan: planType,
-        billing_cycle: billingCycle,
-        end_date: endDate.toISOString().split('T')[0]
-      });
+      console.log('Creating subscription with data:', subscriptionData);
+      const newSubscription = await subscriptionsApi.create(subscriptionData);
+
+      // Solo mostrar alerta si no es plan básico
+      if (planType !== 'basico') {
+        setCurrentSubscription({
+          id: newSubscription.id,
+          plan: newSubscription.plan,
+          billing_cycle: newSubscription.billing_cycle,
+          end_date: newSubscription.end_date,
+          status: newSubscription.status
+        });
+      }
 
       alert(`¡Suscripción ${planType} ${billingCycle} activada exitosamente!`);
+      
+      // Recargar la página para actualizar el estado
+      loadUserAndSubscription();
     } catch (error) {
       console.error("Error creating subscription:", error);
-      alert("Error al crear la suscripción. Intenta de nuevo.");
+      console.error("Error response:", error.response?.data);
+      
+      // Mostrar mensaje de error más detallado
+      const errorMsg = error.response?.data?.message || 
+                       (Array.isArray(error.response?.data?.message) 
+                         ? error.response.data.message.join(', ') 
+                         : "Error al crear la suscripción. Intenta de nuevo.");
+      alert(errorMsg);
     }
   };
 
@@ -166,12 +241,46 @@ export default function Subscriptions() {
           </p>
 
           {currentSubscription && (
-            <Alert className="max-w-2xl mx-auto mb-8 border-green-200 bg-green-50">
-              <Check className="h-4 w-4 text-green-600" />
-              <AlertDescription className="text-green-800">
-                <strong>Plan Activo:</strong> {currentSubscription.plan.charAt(0).toUpperCase() + currentSubscription.plan.slice(1)} 
-                ({currentSubscription.billing_cycle}) - 
-                Válido hasta {new Date(currentSubscription.end_date).toLocaleDateString()}
+            <Alert className={`max-w-2xl mx-auto mb-8 ${
+              currentSubscription.plan === 'basico' 
+                ? 'border-gray-200 bg-gray-50' 
+                : 'border-green-200 bg-green-50'
+            }`}>
+              <Check className={`h-4 w-4 ${
+                currentSubscription.plan === 'basico' 
+                  ? 'text-gray-600' 
+                  : 'text-green-600'
+              }`} />
+              <AlertDescription>
+                <div className="flex items-center justify-between gap-4">
+                  <div className={currentSubscription.plan === 'basico' ? 'text-gray-800' : 'text-green-800'}>
+                    <strong>Plan Activo:</strong> {currentSubscription.plan.charAt(0).toUpperCase() + currentSubscription.plan.slice(1)} 
+                    {currentSubscription.plan !== 'basico' && (
+                      <>
+                        ({currentSubscription.billing_cycle}) - 
+                        Válido hasta {new Date(currentSubscription.end_date).toLocaleDateString()}
+                      </>
+                    )}
+                    {currentSubscription.status === 'cancelada' && (
+                      <span className="ml-2 text-orange-600 font-semibold">(Cancelada)</span>
+                    )}
+                    {currentSubscription.plan === 'basico' && (
+                      <span className="ml-2 text-gray-600">- Plan gratuito</span>
+                    )}
+                  </div>
+                  {currentSubscription.status !== 'cancelada' && 
+                   currentSubscription.plan !== 'basico' && 
+                   currentSubscription.id && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleCancelSubscription}
+                      className="bg-white hover:bg-red-50 text-red-600 border-red-200 hover:border-red-300"
+                    >
+                      Cancelar Suscripción
+                    </Button>
+                  )}
+                </div>
               </AlertDescription>
             </Alert>
           )}

@@ -34,9 +34,12 @@ export const AuthProvider = ({ children }) => {
               const freshUserData = await authApi.getProfile();
               setUser(freshUserData);
             } catch (error) {
-              // If token is invalid, logout
-              console.warn('Token invalid, logging out');
-              logout();
+              // If token is invalid, clear auth but don't trigger logout to avoid loops
+              console.warn('Token invalid, clearing auth');
+              localStorage.removeItem('ecotrade_token');
+              localStorage.removeItem('ecotrade_user');
+              setUser(null);
+              setIsLoggedIn(false);
             }
           }
         }

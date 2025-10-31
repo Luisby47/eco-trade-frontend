@@ -14,14 +14,8 @@ const Login = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   
-  const { login, isLoggedIn } = useAuth();
+  const { login } = useAuth();
   const navigate = useNavigate();
-
-  React.useEffect(() => {
-    if (isLoggedIn) {
-      navigate('/');
-    }
-  }, [isLoggedIn, navigate]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
