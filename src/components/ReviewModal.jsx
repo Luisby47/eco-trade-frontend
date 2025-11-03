@@ -94,7 +94,8 @@ const ReviewModal = ({ isOpen, onClose, purchase, onReviewSubmitted }) => {
                   onClick={() => setRating(star)}
                   onMouseEnter={() => setHoveredRating(star)}
                   onMouseLeave={() => setHoveredRating(0)}
-                  className="transition-transform hover:scale-110"
+                  className="transition-transform hover:scale-110 border-none bg-transparent p-0 focus:outline-none"
+                  style={{ border: 'none', background: 'transparent' }}
                 >
                   <Star
                     className={`w-10 h-10 ${

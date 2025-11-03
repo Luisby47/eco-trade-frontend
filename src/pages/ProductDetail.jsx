@@ -92,8 +92,8 @@ export default function ProductDetail() {
         return;
       }
 
-      // Create purchase via API
-      await purchasesApi.create({
+      // Create purchase via API and capture response for chat redirect
+      const createdPurchase = await purchasesApi.create({
         product_id: productId,
         seller_id: product.seller_id,
         buyer_name: purchaseData.name,
@@ -102,13 +102,14 @@ export default function ProductDetail() {
       });
 
       setShowPurchaseModal(false);
-      alert('¡Compra iniciada! El vendedor ha sido notificado.');
       
-      // Reload product to update status
-      await loadProductData();
-      
-      // Navigate to purchases page or chat
-      navigate('/profile');
+      // Redirect directly to chat with purchase reference
+      navigate('/chats', {
+        state: {
+          purchaseId: createdPurchase.id,
+          message: '¡Compra iniciada! Puedes coordinar con el vendedor desde el chat.',
+        },
+      });
     } catch (error) {
       const errorMessage = error.response?.data?.message || "Error al procesar la compra. Intenta de nuevo.";
       setError(errorMessage);

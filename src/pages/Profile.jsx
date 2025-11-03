@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Star, MapPin, Package, User, Plus, ShoppingBag, MessageCircle, Edit, Save, X, Camera } from 'lucide-react';
+import { Star, MapPin, Package, User, Plus, ShoppingBag, MessageCircle, Edit, Save, X, Camera, ShoppingCart } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/button';
-import { productsApi, reviewsApi, usersApi } from '../services/api';
+import { productsApi, reviewsApi, usersApi, purchasesApi } from '../services/api';
 import ProductCard from '../components/ProductCard';
+import { formatPrice, formatDate, getPlaceholderImage } from '../utils';
 
 /**
  * Enhanced user profile page matching reference design
@@ -20,9 +21,12 @@ const Profile = () => {
   // Estados para productos
   const [myProducts, setMyProducts] = useState([]);
   const [loadingProducts, setLoadingProducts] = useState(true);
+  const [purchases, setPurchases] = useState([]);
+  const [loadingPurchases, setLoadingPurchases] = useState(true);
   const [stats, setStats] = useState({
     available: 0,
     sold: 0,
+    purchased: 0,
   });
 
   // Estados para reviews
@@ -66,7 +70,7 @@ const Profile = () => {
         // Calcular estadísticas
         const available = products.filter(p => p.status === 'available').length;
         const sold = products.filter(p => p.status === 'sold').length;
-        setStats({ available, sold });
+  setStats((prev) => ({ ...prev, available, sold }));
       } catch (error) {
         console.error('Error loading products:', error);
         setMyProducts([]);
@@ -76,6 +80,33 @@ const Profile = () => {
     };
 
     loadMyProducts();
+  }, [isOwnProfile, user]);
+
+  // Cargar compras del usuario
+  useEffect(() => {
+    const loadPurchases = async () => {
+      if (!isOwnProfile || !user) {
+        setLoadingPurchases(false);
+        return;
+      }
+
+      try {
+        setLoadingPurchases(true);
+        const response = await purchasesApi.getAll({ role: 'buyer', limit: 5 });
+        const list = response?.purchases || [];
+        setPurchases(list);
+
+        const totalPurchases = response?.total ?? list.length;
+        setStats((prev) => ({ ...prev, purchased: totalPurchases }));
+      } catch (error) {
+        console.error('Error loading purchases:', error);
+        setPurchases([]);
+      } finally {
+        setLoadingPurchases(false);
+      }
+    };
+
+    loadPurchases();
   }, [isOwnProfile, user]);
 
   // Cargar reviews del usuario
@@ -127,11 +158,35 @@ const Profile = () => {
 
   const handleSaveEdit = async () => {
     try {
-      const updatedUser = await usersApi.updateProfile(editData);
-      
+      const payload = {
+        full_name: editData.full_name?.trim(),
+        phone: editData.phone?.trim(),
+        location: editData.location?.trim(),
+        gender: editData.gender,
+      };
+
+      const sanitizedPayload = Object.fromEntries(
+        Object.entries(payload).filter(([key, value]) => {
+          if (value === undefined || value === null) return false;
+          if (typeof value === 'string') {
+            const normalized = value.trim();
+            if (normalized.length === 0) {
+              return key === 'location';
+            }
+            payload[key] = normalized;
+          }
+          if (key === 'gender' && value === '') {
+            return false;
+          }
+          return true;
+        }),
+      );
+
+      const updatedUser = await usersApi.updateProfile(sanitizedPayload);
+
       // Actualizar el contexto del usuario
-      updateUser(updatedUser);
-      
+      updateUser({ ...user, ...updatedUser });
+
       alert('Información actualizada correctamente');
       setIsEditing(false);
     } catch (error) {
@@ -227,6 +282,32 @@ const Profile = () => {
     );
   }
 
+  const getPurchaseStatusLabel = (status) => {
+    const labels = {
+      pending: 'Pendiente',
+      confirmed: 'Confirmada',
+      completed: 'Completada',
+      cancelled: 'Cancelada',
+    };
+
+    return labels[status] || status;
+  };
+
+  const getPurchaseStatusClasses = (status) => {
+    switch (status) {
+      case 'completed':
+        return 'bg-green-100 text-green-700';
+      case 'confirmed':
+        return 'bg-blue-100 text-blue-700';
+      case 'pending':
+        return 'bg-amber-100 text-amber-700';
+      case 'cancelled':
+        return 'bg-gray-100 text-gray-600';
+      default:
+        return 'bg-gray-100 text-gray-600';
+    }
+  };
+
   return (
     <div className="p-6">
       <div className="max-w-6xl mx-auto">
@@ -293,7 +374,7 @@ const Profile = () => {
 
               {isOwnProfile && (
                 <Link to="/post">
-                  <Button className="bg-white text-green-600 hover:bg-gray-50">
+                  <Button>
                     <Plus className="w-4 h-4 mr-2" />
                     Nuevo Producto
                   </Button>
@@ -303,7 +384,7 @@ const Profile = () => {
           </div>
         </div>
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <div className="bg-white rounded-xl border border-green-100 p-6 text-center shadow-sm">
             <Package className="w-8 h-8 text-green-600 mx-auto mb-3" />
             <p className="text-2xl font-bold text-gray-900 mb-1">{stats.available}</p>
@@ -314,6 +395,12 @@ const Profile = () => {
             <ShoppingBag className="w-8 h-8 text-blue-600 mx-auto mb-3" />
             <p className="text-2xl font-bold text-gray-900 mb-1">{stats.sold}</p>
             <p className="text-gray-600">Productos Vendidos</p>
+          </div>
+
+          <div className="bg-white rounded-xl border border-green-100 p-6 text-center shadow-sm">
+            <ShoppingCart className="w-8 h-8 text-emerald-600 mx-auto mb-3" />
+            <p className="text-2xl font-bold text-gray-900 mb-1">{stats.purchased}</p>
+            <p className="text-gray-600">Compras Realizadas</p>
           </div>
           
           <div className="bg-white rounded-xl border border-green-100 p-6 text-center shadow-sm">
@@ -419,8 +506,124 @@ const Profile = () => {
             )}
           </div>
 
-          {/* Reviews Card */}
+          {/* Purchases Card */}
           <div className="bg-white rounded-xl border border-green-100 overflow-hidden shadow-sm">
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-900">
+                Compras Recientes ({stats.purchased})
+              </h2>
+              {isOwnProfile && stats.purchased > 0 && (
+                <Link to="/my-products?filter=purchased">
+                  <Button size="sm" variant="outline">
+                    Ver historial
+                  </Button>
+                </Link>
+              )}
+            </div>
+
+            {loadingPurchases ? (
+              <div className="p-8">
+                <div className="animate-pulse space-y-4">
+                  <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                  <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+                  <div className="h-4 bg-gray-200 rounded w-2/3"></div>
+                </div>
+              </div>
+            ) : purchases.length > 0 ? (
+              <div className="p-6">
+                <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
+                  {purchases.slice(0, 3).map((purchase) => {
+                    const product = purchase.product || {};
+                    const seller = purchase.seller || {};
+                    const mainImage = Array.isArray(product.images) && product.images.length > 0
+                      ? product.images[0]
+                      : getPlaceholderImage(160, 160);
+                    const productLink = product.id ? `/product/${product.id}` : '/browse';
+
+                    return (
+                      <div key={purchase.id} className="border border-gray-100 rounded-lg p-4">
+                        <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                          <img
+                            src={mainImage}
+                            alt={product.title || 'Producto'}
+                            className="w-20 h-20 sm:w-24 sm:h-24 object-cover rounded-lg flex-shrink-0"
+                          />
+
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-semibold text-gray-900 truncate">
+                              {product.title || 'Producto sin título'}
+                            </h3>
+                            {seller.full_name && (
+                              <p className="text-sm text-gray-500">
+                                Vendedor: {seller.full_name}
+                              </p>
+                            )}
+                            <p className="text-xs text-gray-400">
+                              {formatDate(purchase.created_at)}
+                            </p>
+                          </div>
+
+                          <div className="text-right">
+                            <p className="font-semibold text-green-600">
+                              {formatPrice(product.price || 0)}
+                            </p>
+                            <span className={`text-xs px-2 py-1 rounded-full ${getPurchaseStatusClasses(purchase.status)}`}>
+                              {getPurchaseStatusLabel(purchase.status)}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="mt-4 flex flex-wrap gap-2 justify-end">
+                          <Link to={productLink}>
+                            <Button size="sm" variant="outline">
+                              Ver producto
+                            </Button>
+                          </Link>
+                          <Link to="/chats" state={{ purchaseId: purchase.id }}>
+                            <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white gap-2">
+                              <MessageCircle className="w-4 h-4" />
+                              Ir al chat
+                            </Button>
+                          </Link>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {stats.purchased > purchases.length && (
+                  <div className="mt-6 text-center">
+                    <Link to="/my-products?filter=purchased">
+                      <Button variant="outline" className="w-full">
+                        Ver todas las compras ({stats.purchased})
+                      </Button>
+                    </Link>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="p-8 text-center">
+                <ShoppingBag className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  Aún no has comprado productos
+                </h3>
+                <p className="text-gray-600 mb-6">
+                  Explora el catálogo y adquiere prendas únicas para tu guardarropa sostenible.
+                </p>
+                {isOwnProfile && (
+                  <Link to="/browse">
+                    <Button className="bg-green-600 hover:bg-green-700">
+                      <ShoppingBag className="w-4 h-4 mr-2" />
+                      Explorar productos
+                    </Button>
+                  </Link>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Reviews Card */}
+          <div className="bg-white rounded-xl border border-green-100 overflow-hidden shadow-sm lg:col-span-2">
             <div className="px-6 py-4 border-b border-gray-100">
               <h2 className="text-lg font-semibold text-gray-900">
                 Reseñas ({profileUser.total_reviews})
@@ -564,13 +767,18 @@ const Profile = () => {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
                 {isEditing ? (
-                  <input
-                    type="email"
-                    value={editData.email}
-                    onChange={(e) => handleInputChange('email', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    placeholder="Tu email"
-                  />
+                  <>
+                    <input
+                      type="email"
+                      value={editData.email}
+                      readOnly
+                      disabled
+                      className="w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-50 text-gray-500 cursor-not-allowed"
+                    />
+                    <p className="text-xs text-gray-500 mt-2">
+                      El correo electrónico no se puede modificar desde esta sección.
+                    </p>
+                  </>
                 ) : (
                   <p className="text-gray-900 bg-gray-50 px-3 py-2 rounded-md">{profileUser.email}</p>
                 )}

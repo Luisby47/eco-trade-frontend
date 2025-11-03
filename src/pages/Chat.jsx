@@ -1,17 +1,22 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MessageCircle, User, Plus, ShoppingBag, Send, Star } from 'lucide-react';
+import { MessageCircle, User, Plus, ShoppingBag, Send, Star, CheckCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { chatApi } from '../services/api';
 import ReviewModal from '../components/ReviewModal';
+import { Alert, AlertDescription } from '../components/ui/alert';
 
 /**
  * Chat page component matching reference design
  */
 const Chat = () => {
   const { isLoggedIn, user } = useAuth();
+  const location = useLocation();
+  const locationKey = location.key;
+  const locationState = location.state;
+  const locationSearch = location.search;
   const [chats, setChats] = useState([]);
   const [selectedChat, setSelectedChat] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -20,6 +25,29 @@ const Chat = () => {
   const [sending, setSending] = useState(false);
   const [showReviewModal, setShowReviewModal] = useState(false);
   const messagesEndRef = useRef(null);
+  const [initialPurchaseId, setInitialPurchaseId] = useState(() => {
+    const stateId = location.state?.purchaseId;
+    if (stateId) return stateId;
+    const params = new URLSearchParams(location.search);
+    return params.get('purchaseId') || params.get('purchase') || null;
+  });
+  const [successMessage, setSuccessMessage] = useState(() => location.state?.message || null);
+  const [lastProcessedPurchaseId, setLastProcessedPurchaseId] = useState(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(locationSearch);
+    const queryId = params.get('purchaseId') || params.get('purchase');
+    const stateId = locationState?.purchaseId;
+    const nextId = stateId || queryId;
+
+    if (nextId && nextId !== initialPurchaseId && nextId !== lastProcessedPurchaseId) {
+      setInitialPurchaseId(nextId);
+    }
+
+    if (locationState?.message && locationState.message !== successMessage) {
+      setSuccessMessage(locationState.message);
+    }
+  }, [locationKey, locationSearch, locationState, initialPurchaseId, successMessage, lastProcessedPurchaseId]);
 
   // Cargar chats del usuario
   useEffect(() => {
@@ -44,6 +72,20 @@ const Chat = () => {
     loadChats();
   }, [isLoggedIn]);
 
+  // Auto select chat if a purchaseId was provided via navigation state/query
+  useEffect(() => {
+    if (!initialPurchaseId || chats.length === 0) {
+      return;
+    }
+
+    const targetChat = chats.find((chat) => chat.purchase_id === initialPurchaseId);
+    if (targetChat) {
+      setSelectedChat(targetChat);
+      setLastProcessedPurchaseId(initialPurchaseId);
+      setInitialPurchaseId(null);
+    }
+  }, [initialPurchaseId, chats]);
+
   // Cargar mensajes cuando se selecciona un chat
   useEffect(() => {
     const loadMessages = async () => {
@@ -64,6 +106,14 @@ const Chat = () => {
 
     loadMessages();
   }, [selectedChat]);
+
+  // Auto dismiss success message
+  useEffect(() => {
+    if (!successMessage) return;
+
+    const timer = setTimeout(() => setSuccessMessage(null), 6000);
+    return () => clearTimeout(timer);
+  }, [successMessage]);
 
   // Enviar mensaje
   const handleSendMessage = async (e) => {
@@ -119,6 +169,16 @@ const Chat = () => {
 
   return (
     <div className="min-h-screen">
+      {successMessage && (
+        <div className="max-w-7xl mx-auto px-6 pt-6">
+          <Alert className="bg-green-50 border-green-200 text-green-900">
+            <AlertDescription className="flex items-center gap-2">
+              <CheckCircle className="w-5 h-5" />
+              <span>{successMessage}</span>
+            </AlertDescription>
+          </Alert>
+        </div>
+      )}
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-6 py-4">
         <div className="max-w-7xl mx-auto">
